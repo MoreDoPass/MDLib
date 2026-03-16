@@ -10,8 +10,8 @@
  */
 struct ProcessInfo
 {
-    uint32_t pid;       ///< Идентификатор процесса
-    std::wstring name;  ///< Имя процесса
+    uint32_t pid;      ///< Идентификатор процесса
+    std::wstring name; ///< Имя процесса
 
     /**
      * @brief Хендл главного окна процесса (в WinAPI это HWND).
@@ -27,22 +27,29 @@ struct ProcessInfo
  */
 class ProcessManager
 {
-   public:
+public:
     enum class LogLevel
     {
         INFO,
         WARNING,
         CRITICAL
     };
-    using LogCallback = std::function<void(LogLevel level, const std::string& message)>;
+    using LogCallback = std::function<void(LogLevel level, const std::string &message)>;
     static void setLogger(LogCallback logger);
+
+    /**
+     * @brief Найти процессы, используя кастомный фильтр.
+     * @param filter Функция, которая принимает имя процесса и возвращает true, если процесс подходит.
+     * @return Вектор структур ProcessInfo
+     */
+    static std::vector<ProcessInfo> findProcesses(std::function<bool(const std::wstring &)> filter);
 
     /**
      * @brief Найти все процессы с заданным именем.
      * @param processName Имя процесса (например, L"run.exe")
      * @return Вектор структур ProcessInfo
      */
-    static std::vector<ProcessInfo> findProcessesByName(const std::wstring& processName);
+    static std::vector<ProcessInfo> findProcessesByName(const std::wstring &processName);
 
     /**
      * @brief Установить новый заголовок окна для заданного хендла.
@@ -50,18 +57,18 @@ class ProcessManager
      * @param newTitle Новый заголовок окна
      * @return true в случае успеха, false в противном случае.
      */
-    static bool setProcessWindowTitle(HWND handle, const std::wstring& newTitle);
+    static bool setProcessWindowTitle(HWND handle, const std::wstring &newTitle);
 
-   private:
-    ProcessManager() = delete;  ///< Запретить создание экземпляра
+private:
+    ProcessManager() = delete; ///< Запретить создание экземпляра
 
     /**
      * @brief Вспомогательная структура для передачи данных в callback-функцию EnumWindows.
      */
     struct EnumData
     {
-        uint32_t pid;         ///< Идентификатор процесса, для которого ищем окно
-        HWND hwnd = nullptr;  ///< Сюда будет записан хендл найденного окна (HWND)
+        uint32_t pid;        ///< Идентификатор процесса, для которого ищем окно
+        HWND hwnd = nullptr; ///< Сюда будет записан хендл найденного окна (HWND)
     };
 
     /**

@@ -5,10 +5,10 @@
 #include <codecvt>
 #include <locale>
 
-ProcessManager::LogCallback ProcessManager::s_logger = [](LogLevel level, const std::string& message)
+ProcessManager::LogCallback ProcessManager::s_logger = [](LogLevel level, const std::string &message)
 {
     // Логгер по умолчанию, который пишет в консоль
-    const char* levelStr =
+    const char *levelStr =
         (level == LogLevel::CRITICAL) ? "CRITICAL" : (level == LogLevel::WARNING ? "WARNING" : "INFO");
     std::cout << "[ProcessManager] [" << levelStr << "] " << message << std::endl;
 };
@@ -23,8 +23,9 @@ void ProcessManager::setLogger(LogCallback logger)
 
 BOOL CALLBACK ProcessManager::EnumWindowsCallback(HWND hwnd, LPARAM lParam)
 {
-    EnumData* data = reinterpret_cast<EnumData*>(lParam);
-    if (!data) return TRUE;
+    EnumData *data = reinterpret_cast<EnumData *>(lParam);
+    if (!data)
+        return TRUE;
 
     if (IsWindowVisible(hwnd) && GetWindow(hwnd, GW_OWNER) == (HWND) nullptr)
     {
@@ -46,7 +47,7 @@ HWND ProcessManager::findMainWindowHandle(uint32_t pid)
     return data.hwnd;
 }
 
-std::vector<ProcessInfo> ProcessManager::findProcessesByName(const std::wstring& processName)
+std::vector<ProcessInfo> ProcessManager::findProcesses(std::function<bool(const std::wstring &)> filter)
 {
     std::vector<ProcessInfo> processes;
     HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
@@ -62,7 +63,8 @@ std::vector<ProcessInfo> ProcessManager::findProcessesByName(const std::wstring&
     {
         do
         {
-            if (_wcsicmp(pe.szExeFile, processName.c_str()) == 0)
+            // Пропускаем имя процесса через наш фильтр
+            if (filter(std::wstring(pe.szExeFile)))
             {
                 HWND hwnd = findMainWindowHandle(pe.th32ProcessID);
                 if (hwnd)
@@ -82,7 +84,14 @@ std::vector<ProcessInfo> ProcessManager::findProcessesByName(const std::wstring&
     return processes;
 }
 
-bool ProcessManager::setProcessWindowTitle(HWND handle, const std::wstring& newTitle)
+std::vector<ProcessInfo> ProcessManager::findProcessesByName(const std::wstring &processName)
+{
+    // Вызываем нашу новую универсальную функцию с простым правилом точного совпадения
+    return findProcesses([&processName](const std::wstring &name)
+                         { return _wcsicmp(name.c_str(), processName.c_str()) == 0; });
+}
+
+bool ProcessManager::setProcessWindowTitle(HWND handle, const std::wstring &newTitle)
 {
     if (!handle)
     {
