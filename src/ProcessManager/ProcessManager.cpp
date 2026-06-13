@@ -113,3 +113,77 @@ bool ProcessManager::setProcessWindowTitle(HWND handle, const std::wstring &newT
     s_logger(LogLevel::INFO, "Successfully set window title to '" + titleStr + "'.");
     return true;
 }
+
+LaunchedProcessInfo ProcessManager::launchProcess(const std::wstring &exePath, const std::wstring &args, bool suspended)
+{
+    LaunchedProcessInfo info;
+
+    // Формируем командную строку вида: "C:\path\to\run.exe" -nosound
+    std::wstring commandLine = L"\"" + exePath + L"\"";
+    if (!args.empty())
+    {
+        commandLine += L" " + args;
+    }
+
+    // Извлекаем рабочую директорию (папка, где лежит exe), так как WoW это требует
+    std::wstring workingDir;
+    size_t lastSlash = exePath.find_last_of(L"\\/");
+    if (lastSlash != std::wstring::npos)
+    {
+        workingDir = exePath.substr(0, lastSlash);
+    }
+
+    STARTUPINFOW si;
+    ZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+
+    PROCESS_INFORMATION pi;
+    ZeroMemory(&pi, sizeof(pi));
+
+    DWORD creationFlags = suspended ? CREATE_SUSPENDED : 0;
+
+    // Вызываем CreateProcessW. Внимание: commandLine.data() можно использовать с C++17,
+    // так как он предоставляет неконстантный указатель (CreateProcessW может изменять строку).
+    if (!CreateProcessW(
+            NULL,                                           // lpApplicationName (передаем NULL, всё есть в cmdLine)
+            commandLine.data(),                             // lpCommandLine
+            NULL,                                           // lpProcessAttributes
+            NULL,                                           // lpThreadAttributes
+            FALSE,                                          // bInheritHandles
+            creationFlags,                                  // dwCreationFlags
+            NULL,                                           // lpEnvironment
+            workingDir.empty() ? NULL : workingDir.c_str(), // lpCurrentDirectory
+            &si,                                            // lpStartupInfo
+            &pi                                             // lpProcessInformation
+            ))
+    {
+        s_logger(LogLevel::CRITICAL, "Failed to launch process. WinAPI Error: " + std::to_string(GetLastError()));
+        return info;
+    }
+
+    info.pid = pi.dwProcessId;
+    info.hProcess = pi.hProcess;
+    info.hThread = pi.hThread;
+    info.success = true;
+
+    s_logger(LogLevel::INFO, "Process launched successfully. PID: " + std::to_string(info.pid) +
+                                 (suspended ? " (SUSPENDED)" : " (RUNNING)"));
+
+    return info;
+}
+
+bool ProcessManager::resumeThread(HANDLE hThread)
+{
+    if (!hThread)
+        return false;
+
+    DWORD suspendCount = ResumeThread(hThread);
+    if (suspendCount == (DWORD)-1)
+    {
+        s_logger(LogLevel::CRITICAL, "Failed to resume thread. WinAPI Error: " + std::to_string(GetLastError()));
+        return false;
+    }
+
+    s_logger(LogLevel::INFO, "Thread resumed successfully.");
+    return true;
+}

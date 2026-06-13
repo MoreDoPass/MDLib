@@ -22,6 +22,17 @@ struct ProcessInfo
 };
 
 /**
+ * @brief Структура с информацией о запущенном нами процессе.
+ */
+struct LaunchedProcessInfo
+{
+    uint32_t pid = 0;          ///< Идентификатор процесса
+    HANDLE hProcess = nullptr; ///< Хендл процесса (нужно закрыть после использования)
+    HANDLE hThread = nullptr;  ///< Хендл главного потока (нужен для ResumeThread)
+    bool success = false;      ///< Флаг успешного запуска
+};
+
+/**
  * @brief Класс для поиска процессов по имени.
  * @details Использует WinAPI для поиска процессов. Только статические методы.
  */
@@ -58,6 +69,22 @@ public:
      * @return true в случае успеха, false в противном случае.
      */
     static bool setProcessWindowTitle(HWND handle, const std::wstring &newTitle);
+
+    /**
+     * @brief Запускает новый процесс (опционально в замороженном состоянии).
+     * @param exePath Полный путь к исполняемому файлу (например, L"D:\\Games\\Sirus\\run.exe").
+     * @param args Аргументы командной строки (например, L"-nosound").
+     * @param suspended Если true, процесс будет создан с флагом CREATE_SUSPENDED.
+     * @return Структура LaunchedProcessInfo. В случае успеха success == true.
+     */
+    static LaunchedProcessInfo launchProcess(const std::wstring &exePath, const std::wstring &args, bool suspended = false);
+
+    /**
+     * @brief Возобновляет работу приостановленного потока.
+     * @param hThread Хендл потока, полученный из launchProcess.
+     * @return true в случае успеха.
+     */
+    static bool resumeThread(HANDLE hThread);
 
 private:
     ProcessManager() = delete; ///< Запретить создание экземпляра
